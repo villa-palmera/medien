@@ -183,7 +183,7 @@ def main():
     genutzt = {}
     for i, x in enumerate(fertig):
         genutzt[x.get('musik')] = i
-    musik.sort(key=lambda m: (m['titel'] in genutzt, genutzt.get(m['titel'], -1), random.random()))
+    musik.sort(key=lambda m: (m['titel'] in genutzt, genutzt.get(m['titel'], -1)))  # unbenutzte in Listen-Reihenfolge
 
     with tempfile.TemporaryDirectory() as tmp:
         bilder = []
