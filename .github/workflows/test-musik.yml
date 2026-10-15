@@ -1,0 +1,14 @@
+name: Test Musik-Download
+on: [push, workflow_dispatch]
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pixabay-Seite lesen
+        run: |
+          UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0 Safari/537.36"
+          curl -sL -A "$UA" -o p.html -w "HTTP %{http_code}\n" https://pixabay.com/music/funk-funk-groove-soul-527077/
+          wc -c p.html
+          grep -o 'https://cdn.pixabay.com/audio/[^"]*\.mp3' p.html | sort -u | head
+          grep -o 'cdn.pixabay.com/download/audio/[^"]*' p.html | sort -u | head
+          curl -s -o /dev/null -w "beitraege %{http_code}\n" https://meta.tobias-lagmoeller.workers.dev/
