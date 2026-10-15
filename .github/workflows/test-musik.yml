@@ -1,14 +1,28 @@
 name: Test Musik-Download
 on: [push, workflow_dispatch]
+permissions:
+  contents: write
 jobs:
   t:
+    if: "!contains(github.event.head_commit.message, '[skip test]')"
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - name: Pixabay-Seite lesen
         run: |
+          mkdir -p test
           UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0 Safari/537.36"
+          {
           curl -sL -A "$UA" -o p.html -w "HTTP %{http_code}\n" https://pixabay.com/music/funk-funk-groove-soul-527077/
           wc -c p.html
-          grep -o 'https://cdn.pixabay.com/audio/[^"]*\.mp3' p.html | sort -u | head
+          grep -o 'https://cdn.pixabay.com/[^"]*\.mp3' p.html | sort -u | head
+          grep -o '"contentUrl":"[^"]*"' p.html | head
           grep -o 'cdn.pixabay.com/download/audio/[^"]*' p.html | sort -u | head
-          curl -s -o /dev/null -w "beitraege %{http_code}\n" https://meta.tobias-lagmoeller.workers.dev/
+          head -c 600 p.html
+          echo
+          curl -s -o /dev/null -w "worker %{http_code}\n" https://meta.tobias-lagmoeller.workers.dev/
+          fc-list | grep -i dejavu | head -3
+          ffmpeg -version | head -1
+          } > test/ergebnis.txt 2>&1
+          git config user.name "github-actions[bot]"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add test && git commit -m "Testergebnis [skip test]" && git push
