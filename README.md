@@ -13,3 +13,13 @@ Medien für Villa Palmera Stories (öffentlich über GitHub Pages).
   "text": "Abends sitzen alle an einem Tisch. …", "freigabe": "Tobias 15.10.2026 14:00", "aufgabe": "vv-123"}]
 ```
 `art`: beitrag | reel | story · `ziel`: ig | fb | beide · Medien: `video` oder `bilder` (Liste), Pfad im Repo oder https-URL.
+
+## Regel Story-Aufbau (Tobias, 22.10.2026)
+Gilt für `scripts/story.py` und alle von Hand gebauten Stories:
+- Format 1080 × 1920 (9:16), eigene Story-Fassung, nie das Feed-Bild einfach teilen.
+- Sicherheitszonen frei lassen: oben 250 px (Profilbild, Balken), unten 340 px (Name, Antwortfeld), seitlich 80 px.
+- Inhalt mittig, das Wichtige im mittleren Bereich von ca. 1080 × 1350, damit es auch in der Facebook-Vorschaukachel zu sehen ist.
+- Nur eine Textebene. Keine Überschrift oder „NEU IM FEED“ über einer Grafik, die schon Text hat. Nichts überlagern.
+- Bild vollständig zeigen (kein Zoom, der Ränder abschneidet). Kein Bild-Fade-in bei Sekunde 0 (sonst ist die Vorschau schwarz).
+- Handle oder Website nicht an den Rand schreiben; Links nur als Link-Sticker.
+- Neue Story-Varianten vorher als Vorschau mit eingezeichneten Zonen prüfen.

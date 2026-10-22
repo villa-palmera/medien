@@ -72,32 +72,18 @@ def umbrechen(d, text, font, breite):
     return zeilen[:3]
 
 
+# Sicherheitszonen (Regel Tobias 22.10.2026): oben 250 px (Profilbild, Balken),
+# unten 340 px (Name, Antwortfeld), seitlich 80 px frei. Kernaussage mittig,
+# damit sie auch in der Facebook-Vorschaukachel sichtbar ist. Nur EINE Textebene.
+OBEN, UNTEN, RAND = 250, 340, 80
+BOX_Y0 = OBEN + 40            # Bildbereich 290 … 1540, kein Zusatztext (Bild trägt seinen eigenen Text)
+BOX_Y1 = H - UNTEN - 40        # 1540
+BOX_W = W - 2 * RAND           # 920
+
+
 def overlay(titel, pfad):
-    ov = Image.new('RGBA', (W, H), (0, 0, 0, 0))
-    d = ImageDraw.Draw(ov)
-    serif = ImageFont.truetype(FONTS + 'DejaVuSerif-Bold.ttf', 84)
-    sansb = ImageFont.truetype(FONTS + 'DejaVuSans-Bold.ttf', 34)
-    sans = ImageFont.truetype(FONTS + 'DejaVuSans.ttf', 38)
-    hand = ImageFont.truetype(FONTS + 'DejaVuSans-Bold.ttf', 40)
-
-    def mitte(y, t, f, fill):
-        w = d.textlength(t, font=f)
-        d.text(((W - w) / 2 + 2, y + 3), t, font=f, fill=(0, 0, 0, 120))
-        d.text(((W - w) / 2, y), t, font=f, fill=fill)
-
-    # dunkle Verläufe oben/unten für Lesbarkeit
-    for i in range(520):
-        a = int(150 * (1 - i / 520))
-        d.line([(0, i), (W, i)], fill=(0, 0, 0, a))
-        d.line([(0, H - 1 - i), (W, H - 1 - i)], fill=(0, 0, 0, a))
-    mitte(230, 'NEU IM FEED  ·  NEW ON OUR FEED', sansb, (255, 236, 200, 255))
-    y = 310
-    for z in umbrechen(d, titel, serif, W - 140):
-        mitte(y, z, serif, (255, 255, 255, 255))
-        y += 100
-    mitte(1660, '@villapalmeramallorca', hand, (255, 255, 255, 255))
-    mitte(1720, 'palmera-mallorca.com', sans, (255, 236, 200, 255))
-    ov.save(pfad)
+    """Keine zweite Textebene über dem Beitrag (Regel 22.10.2026): leeres Overlay."""
+    Image.new('RGBA', (W, H), (0, 0, 0, 0)).save(pfad)
 
 
 def bild_vorbereiten(src, ziel_bg, ziel_fg):
@@ -107,9 +93,11 @@ def bild_vorbereiten(src, ziel_bg, ziel_fg):
     l, o = (bg.width - W) // 2, (bg.height - H) // 2
     bg = bg.crop((l, o, l + W, o + H)).filter(ImageFilter.GaussianBlur(40))
     ImageEnhance.Brightness(bg).enhance(0.55).save(ziel_bg)
-    # Vordergrund: volle Breite, etwas größer für langsamen Zoom
-    f = 1240 / im.width
-    im.resize((1240, int(im.height * f)), Image.LANCZOS).save(ziel_fg)
+    # Vordergrund: komplett sichtbar im Bildbereich (nichts abschneiden), gerade Maße für ffmpeg
+    f = min(BOX_W / im.width, (BOX_Y1 - BOX_Y0) / im.height)
+    bw, bh = int(im.width * f) // 2 * 2, int(im.height * f) // 2 * 2
+    im.resize((bw, bh), Image.LANCZOS).save(ziel_fg)
+    return bw, bh
 
 
 def video_bauen(bilder, musik, titel, ausgabe, tmp):
@@ -118,12 +106,13 @@ def video_bauen(bilder, musik, titel, ausgabe, tmp):
     teile = []
     for i, b in enumerate(bilder):
         bg, fg = f'{tmp}/bg{i}.png', f'{tmp}/fg{i}.png'
-        bild_vorbereiten(b, bg, fg)
+        bw, bh = bild_vorbereiten(b, bg, fg)
         out = f'{tmp}/s{i}.mp4'
         frames = int(seg * 30) + 15
-        # langsamer Zoom auf das Bild, mittig über dem unscharfen Hintergrund
-        filt = (f"[1:v]scale=w='1240*(1+0.06*t/{seg:.2f})':h=-2:eval=frame,crop=1080:ih:(iw-1080)/2:0[f];"
-                f"[0:v][f]overlay=0:(H-h)/2+40,format=yuv420p,fps=30")
+        # Bild steht ruhig und vollständig im sicheren Bereich (kein Zoom, nichts abgeschnitten)
+        x0 = (W - bw) // 2
+        y0 = BOX_Y0 + ((BOX_Y1 - BOX_Y0) - bh) // 2
+        filt = f"[0:v][1:v]overlay={x0}:{y0},format=yuv420p,fps=30"
         subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-loop', '1', '-t', f'{seg + 0.5:.2f}', '-i', bg,
                         '-loop', '1', '-t', f'{seg + 0.5:.2f}', '-i', fg, '-filter_complex', filt,
                         '-frames:v', str(frames), '-c:v', 'libx264', '-preset', 'medium', '-crf', '20', out], check=True)
@@ -146,7 +135,7 @@ def video_bauen(bilder, musik, titel, ausgabe, tmp):
     # Musik: ab Sekunde 5 (Intro überspringen), ein- und ausblenden
     subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', f'{tmp}/roh.mp4', '-i', f'{tmp}/ov.png',
                     '-ss', '5', '-i', musik,
-                    '-filter_complex', f"[0:v][1:v]overlay=0:0,fade=t=in:st=0:d=0.4,format=yuv420p[v];"
+                    '-filter_complex', f"[0:v][1:v]overlay=0:0,format=yuv420p[v];"
                                        f"[2:a]afade=t=in:st=0:d=1,afade=t=out:st={DAUER - 1.5}:d=1.5,volume=0.9[a]",
                     '-map', '[v]', '-map', '[a]', '-t', str(DAUER), '-r', '30',
                     '-c:v', 'libx264', '-profile:v', 'high', '-pix_fmt', 'yuv420p', '-crf', '21', '-preset', 'medium',
